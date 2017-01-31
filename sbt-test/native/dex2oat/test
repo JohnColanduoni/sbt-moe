@@ -1,0 +1,23 @@
+> iosSimDebug:dex2oat
+$ exists target/moe/build/iphonesimulator/i386/Debug/image.art
+$ exists target/moe/build/iphonesimulator/i386/Debug/application.oat
+$ exists target/moe/build/iphonesimulator/x86_64/Debug/image.art
+$ exists target/moe/build/iphonesimulator/x86_64/Debug/application.oat
+> clean
+> iosDevDebug:dex2oat
+$ exists target/moe/build/iphoneos/arm/Debug/image.art
+$ exists target/moe/build/iphoneos/arm/Debug/application.oat
+$ exists target/moe/build/iphoneos/arm64/Debug/image.art
+$ exists target/moe/build/iphoneos/arm64/Debug/application.oat
+> clean
+> iosSimRelease:dex2oat
+$ exists target/moe/build/iphonesimulator/i386/Release/image.art
+$ exists target/moe/build/iphonesimulator/i386/Release/application.oat
+$ exists target/moe/build/iphonesimulator/x86_64/Release/image.art
+$ exists target/moe/build/iphonesimulator/x86_64/Release/application.oat
+> clean
+> iosDevRelease:dex2oat
+$ exists target/moe/build/iphoneos/arm/Release/image.art
+$ exists target/moe/build/iphoneos/arm/Release/application.oat
+$ exists target/moe/build/iphoneos/arm64/Release/image.art
+$ exists target/moe/build/iphoneos/arm64/Release/application.oat

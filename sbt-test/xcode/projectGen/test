@@ -1,0 +1,2 @@
+> ios:xcodeGenProject
+$ exists xcode/projectgen.xcodeproj/project.pbxproj

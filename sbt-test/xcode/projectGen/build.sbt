@@ -1,0 +1,4 @@
+autoScalaLibrary := false
+
+enablePlugins(MOEPlugin)
+
