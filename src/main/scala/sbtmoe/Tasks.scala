@@ -74,9 +74,21 @@ object Tasks {
       val libraries = proguardLibraries.value
       val output = moeOutputPath.value / "build" / "proguarded.jar"
 
-      strms.log.info(s"Using ProGuard to process ${inputs.map {_.getName}.mkString(", ")}")
+      val cached = FileFunction.cached(
+        strms.cacheDirectory / "moe-proguard",
+        inStyle = FilesInfo.lastModified,
+        outStyle = FilesInfo.exists) { _ =>
+        strms.log.info(s"Using ProGuard to process ${inputs.map {_.getName}.mkString(", ")}")
+        Proguard.process(proguardJar, inputs, libraries, output, Seq(sdkProguardConfig), streams.value)
+        Set(output)
+      }
 
-      Proguard.process(proguardJar, inputs, libraries, output, Seq(sdkProguardConfig), streams.value)
+      val fileDependencies = Set.newBuilder[File]
+      fileDependencies += proguardJar
+      fileDependencies += sdkProguardConfig
+      fileDependencies ++= inputs
+      fileDependencies ++= libraries
+      cached(fileDependencies.result())
 
       output
     },
@@ -89,23 +101,38 @@ object Tasks {
       val moeOutPath = moeOutputPath.value
       val retrolambdaInputDir = moeOutPath / "build" / "retrolambda" / "input"
       val retrolambdaOutputDir = moeOutPath / "build" / "retrolambda" / "output"
-      val classpath = retrolambdaInputDir +: proguardLibraries.value
+      val inputs = Seq(proguard.value)
+      val classpath = proguardLibraries.value
 
-      IO.delete(retrolambdaInputDir)
-      IO.delete(retrolambdaOutputDir)
+      val cached = FileFunction.cached(
+        strms.cacheDirectory / "moe-retrolambda",
+        inStyle = FilesInfo.lastModified,
+        outStyle = FilesInfo.exists) { _ =>
 
-      strms.log.info(s"Extracting input class files to $retrolambdaInputDir")
-      JarProcessing.aggregateClassFiles(Seq(proguard.value), retrolambdaInputDir, strms)
+        IO.delete(retrolambdaInputDir)
+        IO.delete(retrolambdaOutputDir)
 
-      strms.log.info(s"Running retrolambda on class files")
-      Retrolambda.convert(
-        retrolambdaJar,
-        retrolambdaOutputDir,
-        retrolambdaInputDir,
-        classpath,
-        defaultMethods = true,
-        natjSupport = true
-      )
+        strms.log.info(s"Extracting proguarded class files to $retrolambdaInputDir")
+        JarProcessing.aggregateClassFiles(inputs, retrolambdaInputDir, strms)
+
+        strms.log.info(s"Running retrolambda on class files")
+        Retrolambda.convert(
+          retrolambdaJar,
+          retrolambdaOutputDir,
+          retrolambdaInputDir,
+          retrolambdaInputDir +: classpath,
+          defaultMethods = true,
+          natjSupport = true
+        )
+
+        retrolambdaOutputDir.***.get.toSet
+      }
+
+      val fileDependencies = Set.newBuilder[File]
+      fileDependencies += retrolambdaJar
+      fileDependencies ++= JarProcessing.classpathToFileList(inputs)
+      fileDependencies ++= JarProcessing.classpathToFileList(classpath)
+      cached(fileDependencies.result())
 
       retrolambdaOutputDir
     },
@@ -118,11 +145,21 @@ object Tasks {
       val dexOutputPath = moeOutputPath.value / "build" / "dex.jar"
       val dexJar = (moeSdkPath in IOS).value / "tools" / "dx.jar"
 
-      strms.log.info(s"Dexing the following jars: ${inputs.map{_.getName}.mkString(", ")}")
+      val cached = FileFunction.cached(
+        strms.cacheDirectory / "moe-dex",
+        inStyle = FilesInfo.lastModified,
+        outStyle = FilesInfo.exists) { _ =>
+        strms.log.info(s"Dexing the following jars: ${inputs.map {_.getName}.mkString(", ")}")
+        IO.createDirectory(dexOutputPath.getParentFile)
+        Dex.dex(dexJar, dexOutputPath, inputs, strms, core = true)
 
-      IO.createDirectory(dexOutputPath.getParentFile)
+        Set(dexOutputPath)
+      }
 
-      Dex.dex(dexJar, dexOutputPath, inputs, strms, core = true)
+      val fileDependencies = Set.newBuilder[File]
+      fileDependencies += dexJar
+      fileDependencies ++= JarProcessing.classpathToFileList(inputs)
+      cached(fileDependencies.result())
 
       dexOutputPath
     }
@@ -161,22 +198,35 @@ object Tasks {
         val oatOutputPath = moeOutputPath.value / "build" / arch.targetSdk.xcodeName / arch.xcodeName / configuration / "application.oat"
         val imageOutputPath = moeOutputPath.value / "build" / arch.targetSdk.xcodeName / arch.xcodeName / configuration / "image.art"
 
-        IO.createDirectory(oatOutputPath.getParentFile)
-        IO.createDirectory(imageOutputPath.getParentFile)
+        val cached = FileFunction.cached(
+          strms.cacheDirectory / s"moe-dex2oat-${arch.xcodeName}-debugInfo_$debugInfo-optimize_$optimize",
+          inStyle = FilesInfo.lastModified,
+          outStyle = FilesInfo.exists) { _ =>
+            IO.createDirectory(oatOutputPath.getParentFile)
+            IO.createDirectory(imageOutputPath.getParentFile)
 
-        Dex2OAT
-          .compile(
-            dex2oatExec,
-            inputDex,
-            oatOutputPath,
-            imageOutputPath,
-            imageClassesFile,
-            arch,
-            debugInfo = debugInfo,
-            optimize = optimize,
-            Some(imageBase(arch)),
-            strms
-          )
+            Dex2OAT
+              .compile(
+                dex2oatExec,
+                inputDex,
+                oatOutputPath,
+                imageOutputPath,
+                imageClassesFile,
+                arch,
+                debugInfo = debugInfo,
+                optimize = optimize,
+                Some(imageBase(arch)),
+                strms
+              )
+
+            Set(oatOutputPath, imageOutputPath)
+          }
+
+        val fileDependencies = Set.newBuilder[File]
+        fileDependencies += dex2oatExec
+        fileDependencies += imageClassesFile
+        fileDependencies ++= JarProcessing.classpathToFileList(inputDex)
+        cached(fileDependencies.result())
 
         outputFiles += (arch -> Dex2OATOutput(oatOutputPath, imageOutputPath))
       }
@@ -191,18 +241,43 @@ object Tasks {
 
       val inputs = packageResourcesInputs.value
       val outputPath = moeOutputPath.value / "build" / "application.jar"
+      val configName = configuration.value.name
 
-      strms.log(s"Aggregating Java resources from ${inputs.mkString(",")}")
-      JarProcessing.aggregateResources(inputs, outputPath, strms)
+      val cached = FileFunction.cached(
+        strms.cacheDirectory / s"moe-resources-$configName",
+        inStyle = FilesInfo.lastModified,
+        outStyle = FilesInfo.exists) { _ =>
+
+        strms.log(s"Aggregating Java resources from ${inputs.mkString(",")}")
+        JarProcessing.aggregateResources(inputs, outputPath, strms)
+
+        Set(outputPath)
+      }
+
+      cached(JarProcessing.classpathToFileList(inputs).toSet)
 
       outputPath
     },
     startupProviderInputs := postDexClasspath.value,
     startupProvider := {
+      val strms = streams.value
+
       val inputs = startupProviderInputs.value
       val outputPath = moeOutputPath.value / "build" / "preregister.txt"
+      val configName = configuration.value.name
 
-      JarProcessing.preregister(inputs, outputPath)
+      val cached = FileFunction.cached(
+        strms.cacheDirectory / s"moe-preregister-$configName",
+        inStyle = FilesInfo.lastModified,
+        outStyle = FilesInfo.exists) { _ =>
+
+        strms.log(s"Finding classes requiring preregistration from ${inputs.mkString(",")}")
+        JarProcessing.preregister(inputs, outputPath)
+
+        Set(outputPath)
+      }
+
+      cached(JarProcessing.classpathToFileList(inputs).toSet)
 
       outputPath
     },

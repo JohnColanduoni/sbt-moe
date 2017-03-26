@@ -10,7 +10,7 @@ import sbt.Keys.TaskStreams
 import sbt._
 
 import scala.collection.JavaConversions._
-import scala.collection.mutable
+import scala.collection.{SeqView, mutable}
 
 private object JarProcessing {
   def preregister(inputs: Seq[File], outputPath: File): Unit = {
@@ -193,5 +193,16 @@ private object JarProcessing {
         jar.close()
       }
     }
+  }
+
+  // Maps directories in a classpath to a list of class files
+  def classpathToFileList(classpath: Iterable[File]): Iterable[File] = {
+    classpath.view.flatMap { file =>
+      if(file.isDirectory) {
+        Files.walk(file.toPath).iterator().map { _.toFile }
+      } else {
+        Seq(file)
+      }
+    }.toIterable
   }
 }
