@@ -4,7 +4,7 @@ resolvers += Resolver.jcenterRepo
 
 val sharedSettings = Seq(
   organization := "com.hevylight",
-  version := "0.1.0-SNAPSHOT",
+  version := "0.1.0",
   bintrayOrganization := Some("hevylight")
 )
 
