@@ -22,13 +22,19 @@ object Keys {
   val xcodeGenProject = taskKey[File]("Generates an initial XCode project")
 
   // Proguard Keys
-  val proguardTask = taskKey[File]("Execute ProGuard on project classes")
+  val proguardInputs = taskKey[Seq[File]]("Input jars to ProGuard")
+  val proguardLibraries = taskKey[Seq[File]]("Library jars to pass to ProGuard")
+  val proguard = taskKey[File]("Execute ProGuard on project classes")
+
+  // Retrolambda keys
+  val retrolambda = taskKey[File]("Execute retrolambda")
 
   // Dex keys
   val dexInputs = taskKey[Seq[File]]("Input classes to be converted to DEX")
   val dex = taskKey[File]("Convert project classes to DEX format")
   val postDexFiles = taskKey[Seq[File]]("Dex files to be passed to post-dex stages when building for iOS")
-  val postDexJarFiles = taskKey[Seq[File]]("JAR files to be passed to post-dex stages when building for iOS")
+  val postDexResourceFiles = taskKey[Seq[File]]("JAR files to be passed to post-dex resource stages when building for iOS")
+  val postDexClasspath = taskKey[Seq[File]]("JAR files to be passed to post-dex class stages when building for iOS")
 
   // Dex2OAT keys
   val dex2oat = taskKey[Map[sbtmoe.InstructionSet, Tasks.Dex2OATOutput]]("Performs AOT compilation for Android Runtime (Debug configuration)")
@@ -52,6 +58,12 @@ object Keys {
 
   type InstructionSet = sbtmoe.InstructionSet
   val InstructionSet = sbtmoe.InstructionSet
+
+  val moeLibraries = Seq(
+    (unmanagedJars in Compile) ++= {
+      Seq((moeSdkPath in IOS).value / "sdk" / "moe-ios.jar").classpath
+    }
+  )
 
   private val debugSettings = Seq(
     xcodeProjectConfiguration := "Debug",

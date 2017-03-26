@@ -5,7 +5,18 @@ import sbt._
 object MOEPlugin extends AutoPlugin {
   val autoImport = Keys
 
-  override def projectSettings: Seq[Def.Setting[_]] = Keys.defaultSettings ++ inConfig(Keys.IOS)(Tasks.moeGenTasks) ++
+  override def projectSettings: Seq[Def.Setting[_]] = Keys.defaultSettings ++ inConfig(Keys.IOS)(
+    Tasks
+      .moeGenTasks
+  ) ++
     inConfig(Keys.IOSSimDebug)(Tasks.moeBuildTasks) ++ inConfig(Keys.IOSSimRelease)(Tasks.moeBuildTasks) ++
     inConfig(Keys.IOSDeviceDebug)(Tasks.moeBuildTasks) ++ inConfig(Keys.IOSDeviceRelease)(Tasks.moeBuildTasks)
+
+  override def projectConfigurations: Seq[Configuration] = Seq(
+    Keys.IOS,
+    Keys.IOSSimDebug,
+    Keys.IOSSimRelease,
+    Keys.IOSDeviceDebug,
+    Keys.IOSDeviceRelease
+  )
 }

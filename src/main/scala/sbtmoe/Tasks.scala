@@ -41,27 +41,76 @@ object Tasks {
     xcodeGenProject := {
       val projectPath = xcodeProjectDir.value
 
-      val mainClass = organization.value + ".Main"
-
       XCode
         .generateProject(
           projectPath,
           xcodeProjectName.value,
           xcodeOrganizationName.value,
           xcodeOrganizationIdentifier.value,
-          mainClass,
+          (mainClass in Compile).value.getOrElse(throw new RuntimeException("A main class must be specified")),
           streams.value
         )
 
       projectPath
-    }
-  )
-
-  val moeBuildTasks = Seq(
-    dexInputs := {
+    },
+    proguardInputs := {
       val dependencies = (dependencyClasspath in Compile).value
       val projectJar = (packageBin in Compile).value
-      dependencies.map {_.data} :+ projectJar
+      dependencies.map {_.data}.filter { _.getName != "moe-ios.jar" } :+ projectJar
+    },
+    proguardLibraries := {
+      val sdkPath = (moeSdkPath in IOS).value
+
+      Seq(sdkPath / "sdk" / "moe-core.jar", sdkPath / "sdk" / "moe-ios.jar")
+    },
+    proguard := {
+      val strms = streams.value
+
+      val sdkPath = (moeSdkPath in IOS).value
+      val proguardJar = sdkPath / "tools" / "proguard.jar"
+      val sdkProguardConfig = sdkPath / "tools" / "proguard.cfg"
+
+      val inputs = proguardInputs.value
+      val libraries = proguardLibraries.value
+      val output = moeOutputPath.value / "build" / "proguarded.jar"
+
+      strms.log.info(s"Using ProGuard to process ${inputs.map {_.getName}.mkString(", ")}")
+
+      Proguard.process(proguardJar, inputs, libraries, output, Seq(sdkProguardConfig), streams.value)
+
+      output
+    },
+    retrolambda := {
+      val strms = streams.value
+
+      val sdkPath = (moeSdkPath in IOS).value
+      val retrolambdaJar = sdkPath / "tools" / "retrolambda.jar"
+
+      val moeOutPath = moeOutputPath.value
+      val retrolambdaInputDir = moeOutPath / "build" / "retrolambda" / "input"
+      val retrolambdaOutputDir = moeOutPath / "build" / "retrolambda" / "output"
+      val classpath = retrolambdaInputDir +: proguardLibraries.value
+
+      IO.delete(retrolambdaInputDir)
+      IO.delete(retrolambdaOutputDir)
+
+      strms.log.info(s"Extracting input class files to $retrolambdaInputDir")
+      JarProcessing.aggregateClassFiles(Seq(proguard.value), retrolambdaInputDir, strms)
+
+      strms.log.info(s"Running retrolambda on class files")
+      Retrolambda.convert(
+        retrolambdaJar,
+        retrolambdaOutputDir,
+        retrolambdaInputDir,
+        classpath,
+        defaultMethods = true,
+        natjSupport = true
+      )
+
+      retrolambdaOutputDir
+    },
+    dexInputs := {
+      Seq(retrolambda.value)
     },
     dex := {
       val strms = streams.value
@@ -69,19 +118,28 @@ object Tasks {
       val dexOutputPath = moeOutputPath.value / "build" / "dex.jar"
       val dexJar = (moeSdkPath in IOS).value / "tools" / "dx.jar"
 
+      strms.log.info(s"Dexing the following jars: ${inputs.map{_.getName}.mkString(", ")}")
+
       IO.createDirectory(dexOutputPath.getParentFile)
 
       Dex.dex(dexJar, dexOutputPath, inputs, strms, core = true)
 
       dexOutputPath
-    },
+    }
+  )
+
+  val moeBuildTasks = Seq(
     postDexFiles := {
       val sdkPath = (moeSdkPath in IOS).value
-      Seq(dex.value, sdkPath / "sdk" / "moe-core.dex", sdkPath / "sdk" / "moe-ios.dex")
+      Seq(sdkPath / "sdk" / "moe-core.dex", sdkPath / "sdk" / "moe-ios-retro-dex.jar", (dex in IOS).value)
     },
-    postDexJarFiles := {
+    postDexResourceFiles := {
       val sdkPath = (moeSdkPath in IOS).value
-      (sdkPath / "sdk" / "moe-ios.jar") +:  (sdkPath / "sdk" / "moe-core.jar") +: dexInputs.value
+      (sdkPath / "sdk" / "moe-core.jar") :: (sdkPath / "sdk" / "moe-ios.jar") :: (proguard in IOS).value :: Nil
+    },
+    postDexClasspath := {
+      val sdkPath = (moeSdkPath in IOS).value
+      (sdkPath / "sdk" / "moe-core.jar") +: (sdkPath / "sdk" / "moe-ios.jar") +: (dexInputs in IOS).value
     },
     dex2oat := {
       val strms = streams.value
@@ -125,16 +183,21 @@ object Tasks {
 
       outputFiles.result()
     },
-    packageResourcesInputs := postDexJarFiles.value,
+    // The dex inputs will contain retrolambda output, which does not include resources, so we replace it with the
+    // post-proguard jar
+    packageResourcesInputs := postDexResourceFiles.value,
     packageResources := {
+      val strms = streams.value
+
       val inputs = packageResourcesInputs.value
       val outputPath = moeOutputPath.value / "build" / "application.jar"
 
-      JarProcessing.aggregateResources(inputs, outputPath, streams.value)
+      strms.log(s"Aggregating Java resources from ${inputs.mkString(",")}")
+      JarProcessing.aggregateResources(inputs, outputPath, strms)
 
       outputPath
     },
-    startupProviderInputs := postDexJarFiles.value,
+    startupProviderInputs := postDexClasspath.value,
     startupProvider := {
       val inputs = startupProviderInputs.value
       val outputPath = moeOutputPath.value / "build" / "preregister.txt"
@@ -154,7 +217,9 @@ object Tasks {
       val frameworkLinkPath = moeOutputPath.value / s"build/${target.xcodeName}/MOE.framework"
       val frameworkSrcPath = (moeSdkPath in IOS).value / s"sdk/${target.xcodeName}/MOE.framework"
       IO.createDirectory(frameworkLinkPath.getParentFile)
-      Files.createSymbolicLink(frameworkLinkPath.toPath, frameworkSrcPath.toPath)
+      if(!frameworkLinkPath.exists()) {
+        Files.createSymbolicLink(frameworkLinkPath.toPath, frameworkSrcPath.toPath)
+      }
 
       XCode.build(projectPath, projectConfig, TargetSDK.IPhoneSim, streams.value)
     }

@@ -42,7 +42,23 @@ private object Dex2OAT {
       args += "--base=0x" + base.toHexString
     }
 
-    val ret = Process(args.result()).!
+    val ret = Process(args.result()).run(new ProcessLogger {
+      def error(s: => String) = {
+        if (s.startsWith("dex2oat I")) {
+          streams.log.info(s)
+        } else if(s.startsWith("dex2oat W")) {
+          streams.log.warn(s)
+        } else if(s.startsWith("dex2oat F")) {
+          streams.log.error(s)
+        } else {
+          streams.log.error(s)
+        }
+      }
+
+      def buffer[T](f: => T) = f
+
+      def info(s: => String) = {}
+    }).exitValue()
 
     if(ret != 0)
       throw new RuntimeException(s"dex2oat failed with return code $ret")

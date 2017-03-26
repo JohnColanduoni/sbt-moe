@@ -1,5 +1,7 @@
+(mainClass in Compile) := Some("testy.Main")
 autoScalaLibrary := false
+(javacOptions in Compile) ++= Seq("-source", "6", "-target", "6")
 
 enablePlugins(MOEPlugin)
 
-oatArchitectures := Set(InstructionSet.ARM, InstructionSet.ARM64, InstructionSet.X86, InstructionSet.X86_64)
+moeLibraries
