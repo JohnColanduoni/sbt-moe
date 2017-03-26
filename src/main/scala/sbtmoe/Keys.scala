@@ -30,7 +30,7 @@ object Keys {
   val retrolambda = taskKey[File]("Execute retrolambda")
 
   // Dex keys
-  val dexInputs = taskKey[Seq[File]]("Input classes to be converted to DEX")
+  val dexInputs = TaskKey[Seq[File]]("moeDexInputs", "Input classes to be converted to DEX") // sbt-android uses dexInputs. Thanks SBT!
   val dex = taskKey[File]("Convert project classes to DEX format")
   val postDexFiles = taskKey[Seq[File]]("Dex files to be passed to post-dex stages when building for iOS")
   val postDexResourceFiles = taskKey[Seq[File]]("JAR files to be passed to post-dex resource stages when building for iOS")
