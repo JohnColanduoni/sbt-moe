@@ -1,2 +1,2 @@
-> ios:dex
+> ios:moeDex
 $ exists target/moe/build/dex.jar

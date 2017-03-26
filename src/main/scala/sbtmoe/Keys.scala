@@ -22,19 +22,19 @@ object Keys {
   val xcodeGenProject = taskKey[File]("Generates an initial XCode project")
 
   // Proguard Keys
-  val proguardInputs = taskKey[Seq[File]]("Input jars to ProGuard")
-  val proguardLibraries = taskKey[Seq[File]]("Library jars to pass to ProGuard")
-  val proguard = taskKey[File]("Execute ProGuard on project classes")
+  val proguardInputs = TaskKey[Seq[File]]("moeProguardInputs", "Input jars to ProGuard")
+  val proguardLibraries = TaskKey[Seq[File]]("moeProguardLibraries", "Library jars to pass to ProGuard")
+  val proguard = TaskKey[File]("moeProguard", "Execute ProGuard on project classes")
 
   // Retrolambda keys
-  val retrolambda = taskKey[File]("Execute retrolambda")
+  val retrolambda = TaskKey[File]("moeRetrolambda", "Execute retrolambda")
 
   // Dex keys
-  val dexInputs = TaskKey[Seq[File]]("moeDexInputs", "Input classes to be converted to DEX") // sbt-android uses dexInputs. Thanks SBT!
-  val dex = taskKey[File]("Convert project classes to DEX format")
-  val postDexFiles = taskKey[Seq[File]]("Dex files to be passed to post-dex stages when building for iOS")
-  val postDexResourceFiles = taskKey[Seq[File]]("JAR files to be passed to post-dex resource stages when building for iOS")
-  val postDexClasspath = taskKey[Seq[File]]("JAR files to be passed to post-dex class stages when building for iOS")
+  val dexInputs = TaskKey[Seq[File]]("moeDexInputs", "Input classes to be converted to DEX")
+  val dex = TaskKey[File]("moeDex", "Convert project classes to DEX format")
+  val postDexFiles = TaskKey[Seq[File]]("moePostDexFiles", "Dex files to be passed to post-dex stages when building for iOS")
+  val postDexResourceFiles = TaskKey[Seq[File]]("moePostDexResourceFiles", "JAR files to be passed to post-dex resource stages when building for iOS")
+  val postDexClasspath = TaskKey[Seq[File]]("moePostDexClasspath", "JAR files to be passed to post-dex class stages when building for iOS")
 
   // Dex2OAT keys
   val dex2oat = taskKey[Map[sbtmoe.InstructionSet, Tasks.Dex2OATOutput]]("Performs AOT compilation for Android Runtime (Debug configuration)")
@@ -53,7 +53,7 @@ object Keys {
 
   // Native build keys
   val xcodeProjectConfiguration = settingKey[String]("XCode project configuration (e.g. Debug, Release)")
-  val targetSDK = settingKey[TargetSDK]("Platform SDK")
+  val moeTargetSDK = settingKey[TargetSDK]("Platform SDK")
   val appBundle = taskKey[Unit]("Builds native application bundle")
 
   type InstructionSet = sbtmoe.InstructionSet
@@ -78,12 +78,12 @@ object Keys {
   )
 
   private val deviceSettings = Seq(
-    targetSDK := TargetSDK.IPhoneOS,
+    moeTargetSDK := TargetSDK.IPhoneOS,
     oatArchitectures := Set(InstructionSet.ARM, InstructionSet.ARM64)
   )
 
   private val simulatorSettings = Seq(
-    targetSDK := TargetSDK.IPhoneSim,
+    moeTargetSDK := TargetSDK.IPhoneSim,
     oatArchitectures := Set(InstructionSet.X86, InstructionSet.X86_64)
   )
 

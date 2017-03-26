@@ -287,7 +287,7 @@ object Tasks {
       packageResources.value
 
       val projectPath = xcodeProjectPath.value
-      val target = targetSDK.value
+      val target = moeTargetSDK.value
       val projectConfig = xcodeProjectConfiguration.value
       val frameworkLinkPath = moeOutputPath.value / s"build/${target.xcodeName}/MOE.framework"
       val frameworkSrcPath = (moeSdkPath in IOS).value / s"sdk/${target.xcodeName}/MOE.framework"
