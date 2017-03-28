@@ -281,22 +281,28 @@ object Tasks {
 
       outputPath
     },
-    appBundle := {
+    xcodeSetup := {
       dex2oat.value
       startupProvider.value
       packageResources.value
 
-      val projectPath = xcodeProjectPath.value
       val target = moeTargetSDK.value
-      val projectConfig = xcodeProjectConfiguration.value
+
       val frameworkLinkPath = moeOutputPath.value / s"build/${target.xcodeName}/MOE.framework"
       val frameworkSrcPath = (moeSdkPath in IOS).value / s"sdk/${target.xcodeName}/MOE.framework"
       IO.createDirectory(frameworkLinkPath.getParentFile)
       if(!frameworkLinkPath.exists()) {
         Files.createSymbolicLink(frameworkLinkPath.toPath, frameworkSrcPath.toPath)
       }
+    },
+    appBundle := {
+      xcodeSetup.value
 
-      XCode.build(projectPath, projectConfig, TargetSDK.IPhoneSim, streams.value)
+      val projectPath = xcodeProjectPath.value
+      val target = moeTargetSDK.value
+      val projectConfig = xcodeProjectConfiguration.value
+
+      XCode.build(projectPath, projectConfig, target, streams.value)
     }
   )
 

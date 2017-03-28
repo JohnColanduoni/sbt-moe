@@ -51,6 +51,8 @@ object Keys {
   val packageResources = taskKey[File]("Packages Java resources for application")
   val packageResourcesInputs = taskKey[Seq[File]]("Inputs to copy Java resources from")
 
+  val xcodeSetup = taskKey[Unit]("prepares for an Xcode build")
+
   // Native build keys
   val xcodeProjectConfiguration = settingKey[String]("XCode project configuration (e.g. Debug, Release)")
   val moeTargetSDK = settingKey[TargetSDK]("Platform SDK")

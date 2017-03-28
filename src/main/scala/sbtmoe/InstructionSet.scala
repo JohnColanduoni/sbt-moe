@@ -12,7 +12,7 @@ sealed abstract class InstructionSet {
 object InstructionSet {
   case object ARM extends InstructionSet {
     def dex2oatName = "arm"
-    def xcodeName = "arm"
+    def xcodeName = "armv7"
     def targetSdk = TargetSDK.IPhoneOS
   }
   case object ARM64 extends InstructionSet {
