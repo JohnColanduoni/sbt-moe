@@ -24,6 +24,7 @@ object Keys {
   // Proguard Keys
   val proguardInputs = TaskKey[Seq[File]]("moeProguardInputs", "Input jars to ProGuard")
   val proguardLibraries = TaskKey[Seq[File]]("moeProguardLibraries", "Library jars to pass to ProGuard")
+  val proguardOptions = SettingKey[Seq[String]]("moeProguardOptions", "Extra options to pass to ProGuard")
   val proguard = TaskKey[File]("moeProguard", "Execute ProGuard on project classes")
 
   // Retrolambda keys
@@ -97,6 +98,8 @@ object Keys {
     xcodeOrganizationIdentifier := organization.value,
     xcodeProjectDir := baseDirectory.value / "xcode",
     xcodeProjectPath := xcodeProjectDir.value / (xcodeProjectName.value + ".xcodeproj"),
+
+    proguardOptions := Nil,
 
     oatImageBase := Map(
       InstructionSet.ARM -> 0x10000000L,

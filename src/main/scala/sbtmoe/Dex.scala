@@ -3,7 +3,14 @@ package sbtmoe
 import sbt._
 
 private object Dex {
-  def dex(dexJar: File, output: File, inputs: Seq[File], streams: sbt.Keys.TaskStreams, core: Boolean = false): Unit = {
+  def dex(
+    dexJar: File,
+    output: File,
+    inputs: Seq[File],
+    streams: sbt.Keys.TaskStreams,
+    core: Boolean = false,
+    multidex: Boolean = false
+  ): Unit = {
     val args = Seq.newBuilder[String]
 
     args += "--dex"
@@ -11,6 +18,9 @@ private object Dex {
 
     if(core)
       args += "--core-library"
+
+    if(multidex)
+      args += "--multi-dex"
 
     args ++= inputs.view.map {_.absolutePath}
 

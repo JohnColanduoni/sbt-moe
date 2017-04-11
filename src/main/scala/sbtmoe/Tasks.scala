@@ -72,20 +72,30 @@ object Tasks {
 
       val inputs = proguardInputs.value
       val libraries = proguardLibraries.value
+      val extraProguardOptions = proguardOptions.value
       val output = moeOutputPath.value / "build" / "proguarded.jar"
+
+      // Write extra proguard options to file
+      val extraProguardOptionsString = extraProguardOptions.mkString("\n")
+      val extraProguardOptionsFile = moeOutputPath.value / "build" / "proguard-options-extra"
+      if(!extraProguardOptionsFile.exists() || IO.read(extraProguardOptionsFile) != extraProguardOptionsString) {
+        // Only write file if changes were made, because the mtime will be used by FileFunction
+        IO.write(extraProguardOptionsFile, extraProguardOptionsString)
+      }
 
       val cached = FileFunction.cached(
         strms.cacheDirectory / "moe-proguard",
         inStyle = FilesInfo.lastModified,
         outStyle = FilesInfo.exists) { _ =>
         strms.log.info(s"Using ProGuard to process ${inputs.map {_.getName}.mkString(", ")}")
-        Proguard.process(proguardJar, inputs, libraries, output, Seq(sdkProguardConfig), streams.value)
+        Proguard.process(proguardJar, inputs, libraries, output, Seq(sdkProguardConfig, extraProguardOptionsFile), streams.value)
         Set(output)
       }
 
       val fileDependencies = Set.newBuilder[File]
       fileDependencies += proguardJar
       fileDependencies += sdkProguardConfig
+      fileDependencies += extraProguardOptionsFile
       fileDependencies ++= inputs
       fileDependencies ++= libraries
       cached(fileDependencies.result())
@@ -151,7 +161,7 @@ object Tasks {
         outStyle = FilesInfo.exists) { _ =>
         strms.log.info(s"Dexing the following jars: ${inputs.map {_.getName}.mkString(", ")}")
         IO.createDirectory(dexOutputPath.getParentFile)
-        Dex.dex(dexJar, dexOutputPath, inputs, strms, core = true)
+        Dex.dex(dexJar, dexOutputPath, inputs, strms, core = true, multidex = true)
 
         Set(dexOutputPath)
       }
